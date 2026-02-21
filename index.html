@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DriveStack — Data Platform Prototype</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a0f;--surface:#111118;--surface2:#1a1a24;--surface3:#22222e;
+  --border:#2a2a38;--border2:#3a3a4a;
+  --text:#e4e4ed;--text2:#a0a0b0;--text3:#6a6a7a;
+  --accent:#2997FF;--accent2:#0071E3;--accent-dim:rgba(41,151,255,0.12);
+  --green:#34D399;--green-dim:rgba(52,211,153,0.12);
+  --red:#F87171;--red-dim:rgba(248,113,113,0.12);
+  --yellow:#FBBF24;--yellow-dim:rgba(251,191,36,0.12);
+  --orange:#FB923C;--orange-dim:rgba(251,146,60,0.12);
+  --purple:#A78BFA;--purple-dim:rgba(167,139,250,0.12);
+  --radius:12px;--radius-sm:8px;--radius-xs:6px;
+  --font:-apple-system,BlinkMacSystemFont,'SF Pro Display','Inter',sans-serif;
+  --mono:'SF Mono','JetBrains Mono','Fira Code',monospace;
+}
+html{scroll-behavior:smooth}
+body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:1.5;-webkit-font-smoothing:antialiased}
+
+/* ─── LAYOUT ─── */
+.app{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:260px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+.sidebar-header{padding:20px 20px 16px;border-bottom:1px solid var(--border)}
+.sidebar-logo{font-size:18px;font-weight:700;color:var(--text);letter-spacing:-0.5px}
+.sidebar-logo span{color:var(--accent)}
+.sidebar-label{font-size:10px;font-weight:600;color:var(--accent);letter-spacing:1.5px;text-transform:uppercase;margin-top:8px}
+.sidebar-nav{flex:1;padding:12px 10px;overflow-y:auto}
+.nav-group{margin-bottom:16px}
+.nav-group-title{font-size:10px;font-weight:600;color:var(--text3);letter-spacing:1.2px;text-transform:uppercase;padding:8px 12px 6px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--radius-sm);cursor:pointer;font-size:13px;font-weight:500;color:var(--text2);transition:all 0.15s;user-select:none}
+.nav-item:hover{background:var(--surface2);color:var(--text)}
+.nav-item.active{background:var(--accent-dim);color:var(--accent);font-weight:600}
+.nav-icon{width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.sidebar-footer{padding:16px 20px;border-top:1px solid var(--border);font-size:11px;color:var(--text3)}
+
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{height:52px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 28px;gap:16px;flex-shrink:0}
+.topbar-title{font-size:15px;font-weight:600;color:var(--text);letter-spacing:-0.3px}
+.topbar-badge{font-size:10px;font-weight:600;padding:3px 10px;border-radius:100px;letter-spacing:0.3px}
+.badge-live{background:var(--green-dim);color:var(--green)}
+.badge-proto{background:var(--accent-dim);color:var(--accent)}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+.topbar-time{font-size:11px;color:var(--text3);font-family:var(--mono)}
+
+.content{flex:1;overflow-y:auto;padding:28px}
+.content-inner{max-width:1400px;margin:0 auto}
+
+/* ─── TAB PANELS ─── */
+.panel{display:none}
+.panel.active{display:block}
+
+/* ─── CARDS ─── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.card-title{font-size:14px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:8px}
+.card-body{padding:20px}
+.card-footer{padding:12px 20px;border-top:1px solid var(--border);font-size:11px;color:var(--text3)}
+
+/* ─── GRID ─── */
+.grid{display:grid;gap:20px}
+.grid-2{grid-template-columns:repeat(2,1fr)}
+.grid-3{grid-template-columns:repeat(3,1fr)}
+.grid-4{grid-template-columns:repeat(4,1fr)}
+@media(max-width:1200px){.grid-4{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:900px){.grid-3,.grid-2{grid-template-columns:1fr}}
+
+/* ─── STAT CARDS ─── */
+.stat{padding:20px}
+.stat-label{font-size:11px;font-weight:600;color:var(--text3);letter-spacing:0.5px;text-transform:uppercase;margin-bottom:6px}
+.stat-val{font-size:32px;font-weight:700;letter-spacing:-1.5px;line-height:1.1}
+.stat-sub{font-size:12px;color:var(--text3);margin-top:4px}
+.stat-val.blue{color:var(--accent)}.stat-val.green{color:var(--green)}.stat-val.yellow{color:var(--yellow)}.stat-val.red{color:var(--red)}.stat-val.purple{color:var(--purple)}
+
+/* ─── TABLES ─── */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+thead{background:var(--surface2)}
+th{text-align:left;padding:10px 14px;font-weight:600;color:var(--text2);font-size:11px;letter-spacing:0.5px;text-transform:uppercase;white-space:nowrap;border-bottom:1px solid var(--border)}
+td{padding:10px 14px;border-bottom:1px solid var(--border);color:var(--text2);white-space:nowrap}
+tr:hover td{background:rgba(255,255,255,0.015)}
+.mono{font-family:var(--mono);font-size:11.5px}
+.pill{display:inline-flex;padding:2px 8px;border-radius:100px;font-size:10px;font-weight:600;letter-spacing:0.3px}
+.pill-green{background:var(--green-dim);color:var(--green)}
+.pill-red{background:var(--red-dim);color:var(--red)}
+.pill-yellow{background:var(--yellow-dim);color:var(--yellow)}
+.pill-blue{background:var(--accent-dim);color:var(--accent)}
+.pill-purple{background:var(--purple-dim);color:var(--purple)}
+.pill-orange{background:var(--orange-dim);color:var(--orange)}
+
+/* ─── CODE BLOCKS ─── */
+.code-block{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px 20px;font-family:var(--mono);font-size:12px;line-height:1.8;overflow-x:auto;color:var(--text2)}
+.code-block .ck{color:#C678DD}.code-block .cs{color:#98C379}.code-block .cf{color:#61AFEF}.code-block .cv{color:#E5C07B}.code-block .cc{color:#5C6370;font-style:italic}.code-block .cn{color:#D19A66}
+
+/* ─── PIPELINE ─── */
+.pipeline{display:flex;align-items:flex-start;gap:16px;margin:20px 0;overflow-x:auto;padding-bottom:8px}
+.pipe-stage{flex:1;min-width:280px}
+.pipe-arrow{display:flex;align-items:center;padding-top:40px;color:var(--accent);font-size:20px;flex-shrink:0}
+.pipe-stage-title{font-size:12px;font-weight:600;color:var(--accent);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.pipe-stage-title .step-num{width:20px;height:20px;border-radius:50%;background:var(--accent);color:var(--bg);font-size:10px;display:flex;align-items:center;justify-content:center;font-weight:700}
+
+/* ─── CHART BARS ─── */
+.bar-chart{display:flex;flex-direction:column;gap:8px}
+.bar-row{display:flex;align-items:center;gap:12px}
+.bar-label{width:100px;font-size:12px;color:var(--text2);text-align:right;flex-shrink:0}
+.bar-track{flex:1;height:24px;background:var(--surface2);border-radius:4px;overflow:hidden;position:relative}
+.bar-fill{height:100%;border-radius:4px;transition:width 1s cubic-bezier(0.25,1,0.5,1);display:flex;align-items:center;padding:0 8px;font-size:10px;font-weight:600;color:var(--bg)}
+.bar-fill.blue{background:var(--accent)}.bar-fill.green{background:var(--green)}.bar-fill.yellow{background:var(--yellow)}.bar-fill.red{background:var(--red)}.bar-fill.purple{background:var(--purple)}.bar-fill.orange{background:var(--orange)}
+.bar-val{font-size:11px;color:var(--text3);width:50px;font-family:var(--mono);flex-shrink:0}
+
+/* ─── SCORE GAUGE ─── */
+.gauge-wrap{display:flex;flex-direction:column;align-items:center;gap:8px}
+.gauge-ring{position:relative;width:160px;height:160px}
+.gauge-ring svg{transform:rotate(-90deg)}
+.gauge-ring .bg{fill:none;stroke:var(--surface2);stroke-width:10}
+.gauge-ring .fill{fill:none;stroke-width:10;stroke-linecap:round;transition:stroke-dashoffset 1.5s cubic-bezier(0.25,1,0.5,1)}
+.gauge-val{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:42px;font-weight:800;letter-spacing:-2px}
+.gauge-label{font-size:12px;color:var(--text3);font-weight:500}
+
+/* ─── MAP PLACEHOLDER ─── */
+.map-view{width:100%;height:400px;background:var(--surface2);border-radius:var(--radius);position:relative;overflow:hidden}
+.map-grid{position:absolute;inset:0;opacity:0.15;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:40px 40px}
+.map-dot{position:absolute;width:12px;height:12px;border-radius:50%;border:2px solid;animation:map-pulse 2s infinite}
+@keyframes map-pulse{0%,100%{box-shadow:0 0 0 0 rgba(41,151,255,0.4)}50%{box-shadow:0 0 0 8px rgba(41,151,255,0)}}
+.map-dot.moving{background:var(--green);border-color:var(--green)}
+.map-dot.idle{background:var(--yellow);border-color:var(--yellow)}
+.map-dot.alert{background:var(--red);border-color:var(--red)}
+.map-dot .map-tooltip{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-xs);padding:6px 10px;font-size:10px;white-space:nowrap;color:var(--text);pointer-events:none;opacity:0;transition:opacity 0.2s}
+.map-dot:hover .map-tooltip{opacity:1}
+.map-route{position:absolute;border:none;border-top:2px dashed var(--accent);opacity:0.3;transform-origin:left center}
+
+/* ─── ALERT LIST ─── */
+.alert-list{display:flex;flex-direction:column;gap:8px}
+.alert-item{display:flex;align-items:flex-start;gap:12px;padding:12px 16px;background:var(--surface2);border-radius:var(--radius-sm);border-left:3px solid}
+.alert-item.critical{border-left-color:var(--red)}.alert-item.warning{border-left-color:var(--yellow)}.alert-item.info{border-left-color:var(--accent)}
+.alert-icon{font-size:16px;flex-shrink:0;margin-top:1px}
+.alert-body{flex:1}
+.alert-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px}
+.alert-desc{font-size:11px;color:var(--text3)}
+.alert-time{font-size:10px;color:var(--text3);font-family:var(--mono);flex-shrink:0;margin-top:2px}
+
+/* ─── SECTION SPACING ─── */
+.mb-20{margin-bottom:20px}.mb-28{margin-bottom:28px}.mb-8{margin-bottom:8px}
+.section-title{font-size:20px;font-weight:700;color:var(--text);letter-spacing:-0.5px;margin-bottom:4px}
+.section-sub{font-size:13px;color:var(--text3);margin-bottom:20px}
+
+/* ─── DIFF VIEW ─── */
+.diff-row{display:flex;gap:2px;font-family:var(--mono);font-size:11px;line-height:1.8}
+.diff-old{flex:1;background:rgba(248,113,113,0.06);padding:2px 10px;color:var(--red);border-left:3px solid var(--red)}
+.diff-new{flex:1;background:rgba(52,211,153,0.06);padding:2px 10px;color:var(--green);border-left:3px solid var(--green)}
+.diff-label{font-size:10px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;padding:4px 10px;margin-bottom:4px}
+
+/* ─── TRANSFORM CARD ─── */
+.transform-card{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:10px}
+.transform-name{font-size:12px;font-weight:600;color:var(--accent);margin-bottom:4px}
+.transform-desc{font-size:11px;color:var(--text3);line-height:1.5}
+
+/* ─── TOGGLE ─── */
+.view-toggle{display:inline-flex;background:var(--surface2);border-radius:var(--radius-sm);padding:2px;gap:2px}
+.view-toggle button{padding:6px 14px;border:none;background:transparent;color:var(--text3);font-size:12px;font-weight:500;border-radius:var(--radius-xs);cursor:pointer;font-family:var(--font);transition:all 0.15s}
+.view-toggle button.active{background:var(--accent);color:var(--bg)}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">Drive<span>Stack</span></div>
+      <div class="sidebar-label">Platform Prototype</div>
+    </div>
+    <div class="sidebar-nav">
+      <div class="nav-group">
+        <div class="nav-group-title">Data Layer</div>
+        <div class="nav-item active" data-tab="raw-data"><span class="nav-icon">📡</span> Raw OEM Data</div>
+        <div class="nav-item" data-tab="pipeline"><span class="nav-icon">⚙️</span> Normalization Pipeline</div>
+        <div class="nav-item" data-tab="api-output"><span class="nav-icon">📦</span> Normalized API Output</div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-title">Use Cases</div>
+        <div class="nav-item" data-tab="insurance"><span class="nav-icon">🛡️</span> Dynamic Insurance</div>
+        <div class="nav-item" data-tab="fleet"><span class="nav-icon">🚛</span> Fleet Tracking</div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-title">Reference</div>
+        <div class="nav-item" data-tab="schema"><span class="nav-icon">📐</span> Data Schema</div>
+      </div>
+    </div>
+    <div class="sidebar-footer">Prototype v1.0 — Synthetic Data<br>Built for investor demo</div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="topbar-title">Raw OEM Data</div>
+      <div class="topbar-badge badge-proto">PROTOTYPE</div>
+      <div class="topbar-right">
+        <span class="topbar-badge badge-live">● LIVE SIM</span>
+        <span class="topbar-time" id="clock"></span>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="content-inner">
+
+<!-- ════════════════════════ TAB 1: RAW OEM DATA ════════════════════════ -->
+<div class="panel active" id="panel-raw-data">
+  <div class="section-title">Raw OEM Telemetry Feeds</div>
+  <div class="section-sub">Synthetic samples of raw data as received from each OEM's telematics cloud — different formats, protocols, and schemas.</div>
+
+  <div class="grid grid-4 mb-20">
+    <div class="card"><div class="stat"><div class="stat-label">Connected OEMs</div><div class="stat-val blue">7</div><div class="stat-sub">Active connectors</div></div></div>
+    <div class="card"><div class="stat"><div class="stat-label">Vehicles Tracked</div><div class="stat-val green">2,847</div><div class="stat-sub">Across all OEMs</div></div></div>
+    <div class="card"><div class="stat"><div class="stat-label">Data Points / Min</div><div class="stat-val yellow">14.2K</div><div class="stat-sub">Ingestion rate</div></div></div>
+    <div class="card"><div class="stat"><div class="stat-label">Protocols</div><div class="stat-val purple">5</div><div class="stat-sub">REST, MQTT, TCP, OCPP, OBD-II</div></div></div>
+  </div>
+
+  <!-- OEM DATA SAMPLES -->
+  <div class="card mb-20">
+    <div class="card-header">
+      <div class="card-title">🔵 Tata Motors API (REST/JSON)</div>
+      <span class="pill pill-blue">REST API</span>
+    </div>
+    <div class="card-body">
+      <div class="code-block"><span class="cc">// GET https://tata-telematics.zconnectedcar.com/v1/vehicles/MATZ..1234/status</span>
+{
+  <span class="cv">"vin"</span>: <span class="cs">"MATZ521XLN1234567"</span>,
+  <span class="cv">"model"</span>: <span class="cs">"Nexon EV Max"</span>,
+  <span class="cv">"timestamp"</span>: <span class="cs">"2025-02-21T14:32:18.000+05:30"</span>,
+  <span class="cv">"batteryStateOfCharge"</span>: <span class="cn">78.5</span>,          <span class="cc">// Percentage</span>
+  <span class="cv">"estimatedRange_km"</span>: <span class="cn">186</span>,
+  <span class="cv">"chargingStatus"</span>: <span class="cs">"NOT_CHARGING"</span>,
+  <span class="cv">"odometerReading"</span>: <span class="cn">24350.7</span>,           <span class="cc">// km</span>
+  <span class="cv">"vehicleSpeed"</span>: <span class="cn">62</span>,                    <span class="cc">// km/h</span>
+  <span class="cv">"location"</span>: { <span class="cv">"lat"</span>: <span class="cn">19.0760</span>, <span class="cv">"lon"</span>: <span class="cn">72.8777</span> },
+  <span class="cv">"engineStatus"</span>: <span class="cs">"RUNNING"</span>,
+  <span class="cv">"tirePressure"</span>: { <span class="cv">"fl"</span>: <span class="cn">32</span>, <span class="cv">"fr"</span>: <span class="cn">33</span>, <span class="cv">"rl"</span>: <span class="cn">31</span>, <span class="cv">"rr"</span>: <span class="cn">32</span> },
+  <span class="cv">"dtcCodes"</span>: []
+}</div>
+    </div>
+    <div class="card-footer">Protocol: REST/HTTPS • Auth: OAuth 2.0 • Rate: 1 req/10s per vehicle</div>
+  </div>
+
+  <div class="grid grid-2 mb-20">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">🟢 Hyundai BlueLink (REST/JSON)</div>
+        <span class="pill pill-green">REST API</span>
+      </div>
+      <div class="card-body">
+        <div class="code-block"><span class="cc">// GET https://prd-ind.ccapi.hyundai.com/api/v1/spa/vehicles/...</span>
+{
+  <span class="cv">"vehicleId"</span>: <span class="cs">"HYN-CRET-2024-4821"</span>,
+  <span class="cv">"vehicleModel"</span>: <span class="cs">"Creta 2024"</span>,
+  <span class="cv">"fuelLevel"</span>: <span class="cn">67.2</span>,            <span class="cc">// Percentage</span>
+  <span class="cv">"speed_kph"</span>: <span class="cn">0</span>,
+  <span class="cv">"engineRunning"</span>: <span class="ck">false</span>,
+  <span class="cv">"mileage"</span>: <span class="cn">18420</span>,             <span class="cc">// km (integer!)</span>
+  <span class="cv">"gps"</span>: {
+    <span class="cv">"latitude"</span>: <span class="cn">12.9716</span>,
+    <span class="cv">"longitude"</span>: <span class="cn">77.5946</span>,
+    <span class="cv">"heading"</span>: <span class="cn">180</span>,
+    <span class="cv">"speed"</span>: <span class="cn">0</span>,               <span class="cc">// Duplicate speed!</span>
+    <span class="cv">"fixTime"</span>: <span class="cn">1740130338000</span>  <span class="cc">// Unix ms!!</span>
+  },
+  <span class="cv">"dtc"</span>: [<span class="cs">"P0171"</span>]
+}</div>
+      </div>
+      <div class="card-footer">Protocol: REST/HTTPS • Auth: Bearer token • Different timestamp format!</div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">🟠 AIS-140 GPS Tracker (TCP/Binary)</div>
+        <span class="pill pill-orange">TCP RAW</span>
+      </div>
+      <div class="card-body">
+        <div class="code-block"><span class="cc">// Raw TCP packet on port 5001 (AIS-140 standard)</span>
+<span class="cs">"$,NRM,868998032164530,V1.0.2,</span>
+<span class="cs"> L,210226,143218,19.0760N,072.8777E,</span>
+<span class="cs"> 045.2,000.0,12,1210.5,04.2,</span>
+<span class="cs"> 32.8,01,0000,0000,0.0,</span>
+<span class="cs"> A,2847,*,CE"</span>
+
+<span class="cc">// Decoded fields:</span>
+<span class="cc">// IMEI: 868998032164530</span>
+<span class="cc">// Date: 21-02-26 (DDMMYY!) Time: 14:32:18</span>
+<span class="cc">// Lat: 19.0760N  Lon: 072.8777E</span>
+<span class="cc">// Speed: 045.2 KNOTS (!!) — not km/h</span>
+<span class="cc">// Heading: 000.0  Sats: 12</span>
+<span class="cc">// Odometer: 1210.5 km  Fuel: 04.2V analog</span></div>
+      </div>
+      <div class="card-footer">Protocol: TCP raw binary • No auth • Speed in KNOTS not km/h!</div>
+    </div>
+  </div>
+
+  <div class="grid grid-2 mb-20">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">🔴 MG iSMART (MQTT/JSON)</div>
+        <span class="pill pill-red">MQTT</span>
+      </div>
+      <div class="card-body">
+        <div class="code-block"><span class="cc">// Topic: mg/vehicles/ZSEV.../telemetry</span>
+{
+  <span class="cv">"vid"</span>: <span class="cs">"ZSEV-MG-2024-7293"</span>,
+  <span class="cv">"nm"</span>: <span class="cs">"ZS EV"</span>,
+  <span class="cv">"ts"</span>: <span class="cn">1740130338</span>,       <span class="cc">// Unix seconds</span>
+  <span class="cv">"soc"</span>: <span class="cn">0.645</span>,           <span class="cc">// 0-1 scale!!</span>
+  <span class="cv">"rng"</span>: <span class="cn">204</span>,
+  <span class="cv">"spd"</span>: <span class="cn">45.8</span>,
+  <span class="cv">"odo"</span>: <span class="cn">31250</span>,
+  <span class="cv">"pos"</span>: [<span class="cn">28.6139</span>,<span class="cn">77.2090</span>],  <span class="cc">// Array not object!</span>
+  <span class="cv">"chrg"</span>: <span class="cn">0</span>,              <span class="cc">// 0/1 boolean</span>
+  <span class="cv">"dtcs"</span>: <span class="cs">""</span>              <span class="cc">// Empty string vs []</span>
+}</div>
+      </div>
+      <div class="card-footer">Protocol: MQTT • Auth: Client certs • Battery SoC as 0-1 decimal!</div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">🟡 Kia Connect (REST/XML)</div>
+        <span class="pill pill-yellow">REST/XML</span>
+      </div>
+      <div class="card-body">
+        <div class="code-block"><span class="cc">&lt;!-- GET /kia/api/vehicles/{id}/status --&gt;</span>
+<span class="ck">&lt;VehicleStatus&gt;</span>
+  <span class="ck">&lt;VIN&gt;</span><span class="cs">KNAPH81BD...</span><span class="ck">&lt;/VIN&gt;</span>
+  <span class="ck">&lt;ModelName&gt;</span><span class="cs">Seltos</span><span class="ck">&lt;/ModelName&gt;</span>
+  <span class="ck">&lt;FuelLevelPct&gt;</span><span class="cn">82</span><span class="ck">&lt;/FuelLevelPct&gt;</span>
+  <span class="ck">&lt;OdometerKm&gt;</span><span class="cn">9870.3</span><span class="ck">&lt;/OdometerKm&gt;</span>
+  <span class="ck">&lt;Speed unit="mph"&gt;</span><span class="cn">38</span><span class="ck">&lt;/Speed&gt;</span>  <span class="cc">&lt;!-- MPH!! --&gt;</span>
+  <span class="ck">&lt;GPS&gt;</span>
+    <span class="ck">&lt;Lat&gt;</span><span class="cn">17.3850</span><span class="ck">&lt;/Lat&gt;</span>
+    <span class="ck">&lt;Lng&gt;</span><span class="cn">78.4867</span><span class="ck">&lt;/Lng&gt;</span>
+    <span class="ck">&lt;Time&gt;</span><span class="cs">02/21/26 2:32 PM</span><span class="ck">&lt;/Time&gt;</span>
+  <span class="ck">&lt;/GPS&gt;</span>
+<span class="ck">&lt;/VehicleStatus&gt;</span></div>
+      </div>
+      <div class="card-footer">Protocol: REST/XML • Auth: API Key • Speed in MPH! Date in US format!</div>
+    </div>
+  </div>
+
+  <div class="grid grid-2">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">⚫ BYD API (REST/JSON)</div>
+        <span class="pill pill-purple">REST API</span>
+      </div>
+      <div class="card-body">
+        <div class="code-block">{
+  <span class="cv">"vehicle_no"</span>: <span class="cs">"BYD-ATTO3-IND-3891"</span>,
+  <span class="cv">"type"</span>: <span class="cs">"Atto 3"</span>,
+  <span class="cv">"battery_pct"</span>: <span class="cn">91</span>,        <span class="cc">// Integer, no decimal</span>
+  <span class="cv">"range_mi"</span>: <span class="cn">196</span>,          <span class="cc">// MILES not km!!</span>
+  <span class="cv">"speed"</span>: <span class="cn">55</span>,              <span class="cc">// km/h (at least)</span>
+  <span class="cv">"mileage_km"</span>: <span class="cn">8230</span>,
+  <span class="cv">"lat"</span>: <span class="cn">13.0827</span>, <span class="cv">"lng"</span>: <span class="cn">80.2707</span>,
+  <span class="cv">"charging"</span>: <span class="cs">"no"</span>,        <span class="cc">// String "yes"/"no"!</span>
+  <span class="cv">"faults"</span>: <span class="ck">null</span>           <span class="cc">// null vs [] vs ""</span>
+}</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">🟤 Mahindra DiGiSENSE (REST/JSON)</div>
+        <span class="pill pill-orange">REST API</span>
+      </div>
+      <div class="card-body">
+        <div class="code-block">{
+  <span class="cv">"asset_id"</span>: <span class="cs">"MAH-XUV700-5562"</span>,
+  <span class="cv">"model"</span>: <span class="cs">"XUV700 AX7"</span>,
+  <span class="cv">"fuel_pct"</span>: <span class="cn">54.8</span>,
+  <span class="cv">"odo_reading"</span>: <span class="cn">42100</span>,
+  <span class="cv">"current_speed"</span>: <span class="cn">78</span>,     <span class="cc">// km/h</span>
+  <span class="cv">"location"</span>: {
+    <span class="cv">"lat"</span>: <span class="cs">"18.5204"</span>,       <span class="cc">// STRING not number!!</span>
+    <span class="cv">"long"</span>: <span class="cs">"73.8567"</span>      <span class="cc">// "long" vs "lng" vs "lon"</span>
+  },
+  <span class="cv">"engine_on"</span>: <span class="cn">1</span>,          <span class="cc">// 1/0 not true/false</span>
+  <span class="cv">"active_dtcs"</span>: <span class="cs">"P0301,P0420"</span> <span class="cc">// CSV string!</span>
+}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════ TAB 2: NORMALIZATION PIPELINE ════════════════════════ -->
+<div class="panel" id="panel-pipeline">
+  <div class="section-title">Data Normalization Pipeline</div>
+  <div class="section-sub">How DriveStack transforms chaotic, inconsistent OEM data into a clean, unified schema.</div>
+
+  <div class="grid grid-4 mb-20">
+    <div class="card"><div class="stat"><div class="stat-label">Transform Rules</div><div class="stat-val blue">23</div><div class="stat-sub">Active rules</div></div></div>
+    <div class="card"><div class="stat"><div class="stat-label">Fields Normalized</div><div class="stat-val green">50+</div><div class="stat-sub">Per vehicle</div></div></div>
+    <div class="card"><div class="stat"><div class="stat-label">Avg. Latency</div><div class="stat-val yellow">12ms</div><div class="stat-sub">End-to-end</div></div></div>
+    <div class="card"><div class="stat"><div class="stat-label">Error Rate</div><div class="stat-val green">0.02%</div><div class="stat-sub">Data validation</div></div></div>
+  </div>
+
+  <!-- PIPELINE VISUALIZATION -->
+  <div class="card mb-20">
+    <div class="card-header"><div class="card-title">🔄 Pipeline Stages</div></div>
+    <div class="card-body">
+      <div class="pipeline">
+        <div class="pipe-stage">
+          <div class="pipe-stage-title"><span class="step-num">1</span> INGEST</div>
+          <div class="transform-card">
+            <div class="transform-name">Protocol Adapters</div>
+            <div class="transform-desc">REST → JSON parser<br>MQTT → Topic subscriber<br>TCP → Binary frame decoder<br>XML → DOM parser</div>
+          </div>
+          <div class="transform-card">
+            <div class="transform-name">Auth Handler</div>
+            <div class="transform-desc">OAuth 2.0 token refresh, client cert rotation, API key management per OEM</div>
+          </div>
+        </div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-stage">
+          <div class="pipe-stage-title"><span class="step-num">2</span> CLEAN</div>
+          <div class="transform-card">
+            <div class="transform-name">Type Coercion</div>
+            <div class="transform-desc">String→Float: "18.5204" → 18.5204<br>String→Bool: "yes" → true<br>CSV→Array: "P0301,P0420" → ["P0301","P0420"]<br>Null normalize: null/""/[] → []</div>
+          </div>
+          <div class="transform-card">
+            <div class="transform-name">Outlier Detection</div>
+            <div class="transform-desc">Speed > 250 km/h → flagged<br>Battery SoC > 100% → capped<br>GPS jumps > 10km/s → rejected</div>
+          </div>
+        </div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-stage">
+          <div class="pipe-stage-title"><span class="step-num">3</span> NORMALIZE</div>
+          <div class="transform-card">
+            <div class="transform-name">Unit Conversion</div>
+            <div class="transform-desc">Knots → km/h (×1.852)<br>MPH → km/h (×1.609)<br>Miles → km (×1.609)<br>SoC 0-1 → 0-100%</div>
+          </div>
+          <div class="transform-card">
+            <div class="transform-name">Schema Mapping</div>
+            <div class="transform-desc">All timestamps → ISO 8601 UTC<br>All locations → {lat, lng} floats<br>All speeds → km/h float<br>All DTCs → string array</div>
+          </div>
+        </div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-stage">
+          <div class="pipe-stage-title"><span class="step-num">4</span> ENRICH</div>
+          <div class="transform-card">
+            <div class="transform-name">Derived Fields</div>
+            <div class="transform-desc">Trip detection (moving/parked)<br>Driving behavior scoring<br>Estimated fuel cost/km<br>Geofence zone tagging</div>
+          </div>
+          <div class="transform-card">
+            <div class="transform-name">Consent Binding</div>
+            <div class="transform-desc">DPDP purpose tagging<br>Scope enforcement<br>Consent token validation<br>Audit log generation</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BEFORE / AFTER COMPARISON -->
+  <div class="card mb-20">
+    <div class="card-header"><div class="card-title">🔀 Before → After: AIS-140 GPS Tracker</div></div>
+    <div class="card-body">
+      <div class="diff-row mb-8">
+        <div>
+          <div class="diff-label" style="color:var(--red)">RAW INPUT (TCP)</div>
+          <div class="diff-old">Speed: 045.2 <strong>knots</strong></div>
+        </div>
+        <div>
+          <div class="diff-label" style="color:var(--green)">NORMALIZED OUTPUT</div>
+          <div class="diff-new">speed_kmh: 83.7 <strong>km/h</strong> (×1.852)</div>
+        </div>
+      </div>
+      <div class="diff-row mb-8">
+        <div><div class="diff-old">Date: 210226 (DDMMYY)</div></div>
+        <div><div class="diff-new">timestamp: "2026-02-21T14:32:18Z" (ISO 8601)</div></div>
+      </div>
+      <div class="diff-row mb-8">
+        <div><div class="diff-old">Lat: 19.0760N  Lon: 072.8777E</div></div>
+        <div><div class="diff-new">location: { lat: 19.076, lng: 72.8777 }</div></div>
+      </div>
+      <div class="diff-row mb-8">
+        <div><div class="diff-old">Fuel: 04.2V (analog voltage)</div></div>
+        <div><div class="diff-new">fuel_pct: 58.3 (calibrated %)</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-20">
+    <div class="card-header"><div class="card-title">🔀 Before → After: MG iSMART (MQTT)</div></div>
+    <div class="card-body">
+      <div class="diff-row mb-8">
+        <div><div class="diff-label" style="color:var(--red)">RAW INPUT</div><div class="diff-old">soc: 0.645 (0-1 scale)</div></div>
+        <div><div class="diff-label" style="color:var(--green)">NORMALIZED</div><div class="diff-new">battery_soc: 64.5 (0-100%)</div></div>
+      </div>
+      <div class="diff-row mb-8">
+        <div><div class="diff-old">ts: 1740130338 (unix sec)</div></div>
+        <div><div class="diff-new">timestamp: "2025-02-21T09:12:18Z"</div></div>
+      </div>
+      <div class="diff-row mb-8">
+        <div><div class="diff-old">pos: [28.6139, 77.2090] (array)</div></div>
+        <div><div class="diff-new">location: { lat: 28.6139, lng: 77.209 }</div></div>
+      </div>
+      <div class="diff-row mb-8">
+        <div><div class="diff-old">chrg: 0 (integer)</div></div>
+        <div><div class="diff-new">is_charging: false (boolean)</div></div>
+      </div>
+      <div class="diff-row">
+        <div><div class="diff-old">dtcs: "" (empty string)</div></div>
+        <div><div class="diff-new">dtc_codes: [] (empty array)</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KEY INCONSISTENCIES TABLE -->
+  <div class="card">
+    <div class="card-header"><div class="card-title">📊 Inconsistency Matrix: What We Fix</div></div>
+    <div class="card-body">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Field</th><th>Tata</th><th>Hyundai</th><th>MG</th><th>Kia</th><th>BYD</th><th>Mahindra</th><th>AIS-140</th><th>DriveStack Output</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Speed unit</strong></td><td>km/h</td><td>km/h</td><td>km/h</td><td class="mono" style="color:var(--red)">mph</td><td>km/h</td><td>km/h</td><td class="mono" style="color:var(--red)">knots</td><td class="mono" style="color:var(--green)">km/h (float)</td></tr>
+            <tr><td><strong>Battery SoC</strong></td><td>0-100</td><td>0-100</td><td class="mono" style="color:var(--red)">0-1</td><td>0-100</td><td class="mono" style="color:var(--red)">integer</td><td>n/a</td><td>n/a</td><td class="mono" style="color:var(--green)">0-100 (float)</td></tr>
+            <tr><td><strong>Timestamp</strong></td><td>ISO+offset</td><td class="mono" style="color:var(--red)">Unix ms</td><td class="mono" style="color:var(--red)">Unix sec</td><td class="mono" style="color:var(--red)">US date str</td><td>ISO</td><td>ISO</td><td class="mono" style="color:var(--red)">DDMMYY</td><td class="mono" style="color:var(--green)">ISO 8601 UTC</td></tr>
+            <tr><td><strong>Location</strong></td><td>{lat,lon}</td><td>{latitude,longitude}</td><td class="mono" style="color:var(--red)">[lat,lng]</td><td>{Lat,Lng}</td><td>flat</td><td class="mono" style="color:var(--red)">"string"</td><td class="mono" style="color:var(--red)">DMS+dir</td><td class="mono" style="color:var(--green)">{lat,lng} float</td></tr>
+            <tr><td><strong>DTC codes</strong></td><td>[]</td><td>["P0171"]</td><td class="mono" style="color:var(--red)">""</td><td>array</td><td class="mono" style="color:var(--red)">null</td><td class="mono" style="color:var(--red)">"P0301,P0420"</td><td>n/a</td><td class="mono" style="color:var(--green)">string[] always</td></tr>
+            <tr><td><strong>Charging</strong></td><td>enum string</td><td>n/a</td><td class="mono" style="color:var(--red)">0/1 int</td><td>n/a</td><td class="mono" style="color:var(--red)">"yes"/"no"</td><td>n/a</td><td>n/a</td><td class="mono" style="color:var(--green)">boolean</td></tr>
+            <tr><td><strong>Range unit</strong></td><td>km</td><td>km</td><td>km</td><td>km</td><td class="mono" style="color:var(--red)">miles</td><td>n/a</td><td>n/a</td><td class="mono" style="color:var(--green)">km (float)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════ TAB 3: NORMALIZED API OUTPUT ════════════════════════ -->
+<div class="panel" id="panel-api-output">
+  <div class="section-title">Normalized API Output</div>
+  <div class="section-sub">Every vehicle, regardless of OEM, returns the same clean schema through DriveStack's API.</div>
+
+  <div class="card mb-20">
+    <div class="card-header">
+      <div class="card-title">📦 Unified Vehicle Object — <span style="color:var(--accent)">GET /v1/vehicles/{id}</span></div>
+    </div>
+    <div class="card-body">
+      <div class="code-block"><span class="cc">// Same exact schema for Tata, Hyundai, MG, Kia, BYD, Mahindra, AIS-140</span>
+{
+  <span class="cv">"id"</span>: <span class="cs">"veh_tata_nexon_ev_a7x3"</span>,
+  <span class="cv">"vin"</span>: <span class="cs">"MATZ521XLN1234567"</span>,
+  <span class="cv">"make"</span>: <span class="cs">"Tata"</span>,
+  <span class="cv">"model"</span>: <span class="cs">"Nexon EV Max"</span>,
+  <span class="cv">"year"</span>: <span class="cn">2024</span>,
+  <span class="cv">"fuel_type"</span>: <span class="cs">"electric"</span>,         <span class="cc">// "electric" | "petrol" | "diesel" | "hybrid"</span>
+  <span class="cv">"timestamp"</span>: <span class="cs">"2026-02-21T09:02:18Z"</span>, <span class="cc">// Always ISO 8601 UTC</span>
+
+  <span class="cv">"location"</span>: {
+    <span class="cv">"lat"</span>: <span class="cn">19.076</span>,               <span class="cc">// Always float</span>
+    <span class="cv">"lng"</span>: <span class="cn">72.8777</span>,              <span class="cc">// Always "lng" key</span>
+    <span class="cv">"heading"</span>: <span class="cn">245</span>,              <span class="cc">// Degrees 0-360</span>
+    <span class="cv">"speed_kmh"</span>: <span class="cn">62.0</span>            <span class="cc">// Always km/h float</span>
+  },
+
+  <span class="cv">"odometer_km"</span>: <span class="cn">24350.7</span>,         <span class="cc">// Always km float</span>
+
+  <span class="cv">"battery"</span>: {                     <span class="cc">// null for ICE vehicles</span>
+    <span class="cv">"soc"</span>: <span class="cn">78.5</span>,                  <span class="cc">// Always 0-100 float</span>
+    <span class="cv">"range_km"</span>: <span class="cn">186.0</span>,            <span class="cc">// Always km float</span>
+    <span class="cv">"is_charging"</span>: <span class="ck">false</span>,         <span class="cc">// Always boolean</span>
+    <span class="cv">"charge_pct_rate"</span>: <span class="ck">null</span>       <span class="cc">// %/hr when charging</span>
+  },
+
+  <span class="cv">"fuel"</span>: {                        <span class="cc">// null for BEVs</span>
+    <span class="cv">"level_pct"</span>: <span class="ck">null</span>,
+    <span class="cv">"range_km"</span>: <span class="ck">null</span>
+  },
+
+  <span class="cv">"engine"</span>: {
+    <span class="cv">"is_running"</span>: <span class="ck">true</span>,           <span class="cc">// Always boolean</span>
+    <span class="cv">"rpm"</span>: <span class="ck">null</span>                   <span class="cc">// null for EVs</span>
+  },
+
+  <span class="cv">"diagnostics"</span>: {
+    <span class="cv">"dtc_codes"</span>: [],               <span class="cc">// Always array, never null/""</span>
+    <span class="cv">"tire_pressure"</span>: {
+      <span class="cv">"front_left"</span>: <span class="cn">32</span>, <span class="cv">"front_right"</span>: <span class="cn">33</span>,
+      <span class="cv">"rear_left"</span>: <span class="cn">31</span>, <span class="cv">"rear_right"</span>: <span class="cn">32</span>
+    }
+  },
+
+  <span class="cv">"meta"</span>: {
+    <span class="cv">"oem"</span>: <span class="cs">"tata"</span>,
+    <span class="cv">"connector_version"</span>: <span class="cs">"2.1.0"</span>,
+    <span class="cv">"consent_id"</span>: <span class="cs">"cns_8f7a3b2c"</span>,
+    <span class="cv">"consent_scope"</span>: [<span class="cs">"location"</span>, <span class="cs">"battery"</span>, <span class="cs">"diagnostics"</span>],
+    <span class="cv">"data_quality_score"</span>: <span class="cn">0.97</span>
+  }
+}</div>
+    </div>
+  </div>
+
+  <!-- FLEET TABLE -->
+  <div class="card">
+    <div class="card-header"><div class="card-title">📋 Sample Fleet — All Vehicles, One Schema</div></div>
+    <div class="card-body">
+      <div class="table-wrap">
+        <table id="fleet-table">
+          <thead><tr><th>Vehicle ID</th><th>Make</th><th>Model</th><th>Fuel</th><th>Speed (km/h)</th><th>Battery/Fuel %</th><th>Odometer (km)</th><th>Location</th><th>DTCs</th><th>Status</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card-footer">All vehicles return identical schema regardless of OEM source — 7 different raw formats → 1 unified format</div>
+  </div>
+</div>
+
+<!-- ════════════════════════ TAB 4: INSURANCE DASHBOARD ════════════════════════ -->
+<div class="panel" id="panel-insurance">
+  <div class="section-title">Dynamic Insurance — Risk Scoring Engine</div>
+  <div class="section-sub">Usage-based insurance powered by real-time vehicle data. Premiums adjust monthly based on actual driving behavior.</div>
+
+  <div class="grid grid-4 mb-20">
+    <div class="card"><div class="stat"><div class="stat-label">Active Policies</div><div class="stat-val blue">1,247</div><div class="stat-sub">Telematics-enabled</div></div></div>
+    <div class="card"><div class="stat"><div class="stat-label">Avg. Risk Score</div><div class="stat-val green">74</div><div class="stat-sub">Out of 100 (good)</div></div></div>
+    <div class="card"><div class="stat"><div class="stat-label">Premium Savings</div><div class="stat-val yellow">₹2.1Cr</div><div class="stat-sub">Cumulative policyholder savings</div></div></div>
+    <div class="card"><div class="stat"><div class="stat-label">Loss Ratio</div><div class="stat-val green">52%</div><div class="stat-sub">vs. 68% industry avg</div></div></div>
+  </div>
+
+  <div class="grid grid-2 mb-20">
+    <!-- Individual Driver Score -->
+    <div class="card">
+      <div class="card-header"><div class="card-title">🎯 Driver Profile: Aniket Samat</div><span class="pill pill-green">LOW RISK</span></div>
+      <div class="card-body" style="text-align:center">
+        <div class="gauge-wrap" style="margin-bottom:20px">
+          <div class="gauge-ring">
+            <svg viewBox="0 0 160 160" width="160" height="160">
+              <circle cx="80" cy="80" r="68" class="bg"/>
+              <circle cx="80" cy="80" r="68" class="fill" stroke="var(--green)" stroke-dasharray="427" stroke-dashoffset="107" id="ins-gauge"/>
+            </svg>
+            <div class="gauge-val" style="color:var(--green)" id="ins-score-val">78</div>
+          </div>
+          <div class="gauge-label">Driver Safety Score</div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;text-align:center">
+          <div><div style="font-size:22px;font-weight:700;color:var(--accent)">₹847</div><div style="font-size:10px;color:var(--text3)">Monthly Premium</div></div>
+          <div><div style="font-size:22px;font-weight:700;color:var(--green)">-23%</div><div style="font-size:10px;color:var(--text3)">vs. Base Rate</div></div>
+          <div><div style="font-size:22px;font-weight:700;color:var(--text)">12</div><div style="font-size:10px;color:var(--text3)">Months Active</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scoring Factors -->
+    <div class="card">
+      <div class="card-header"><div class="card-title">📊 Risk Factor Breakdown</div></div>
+      <div class="card-body">
+        <div class="bar-chart">
+          <div class="bar-row"><span class="bar-label">Hard braking</span><div class="bar-track"><div class="bar-fill green" style="width:88%">88</div></div><span class="bar-val">2/mo</span></div>
+          <div class="bar-row"><span class="bar-label">Speeding</span><div class="bar-track"><div class="bar-fill green" style="width:82%">82</div></div><span class="bar-val">4%</span></div>
+          <div class="bar-row"><span class="bar-label">Night driving</span><div class="bar-track"><div class="bar-fill yellow" style="width:65%">65</div></div><span class="bar-val">18%</span></div>
+          <div class="bar-row"><span class="bar-label">Avg trip dist</span><div class="bar-track"><div class="bar-fill green" style="width:90%">90</div></div><span class="bar-val">12km</span></div>
+          <div class="bar-row"><span class="bar-label">Phone usage</span><div class="bar-track"><div class="bar-fill green" style="width:85%">85</div></div><span class="bar-val">Low</span></div>
+          <div class="bar-row"><span class="bar-label">Vehicle health</span><div class="bar-track"><div class="bar-fill green" style="width:95%">95</div></div><span class="bar-val">0 DTCs</span></div>
+          <div class="bar-row"><span class="bar-label">Acceleration</span><div class="bar-track"><div class="bar-fill yellow" style="width:72%">72</div></div><span class="bar-val">Mod.</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Risk API -->
+  <div class="card mb-20">
+    <div class="card-header"><div class="card-title">⚡ Insurance Risk API — <span style="color:var(--accent)">GET /v1/insurance/risk/{vehicle_id}</span></div></div>
+    <div class="card-body">
+      <div class="code-block">{
+  <span class="cv">"vehicle_id"</span>: <span class="cs">"veh_tata_nexon_ev_a7x3"</span>,
+  <span class="cv">"policy_id"</span>: <span class="cs">"pol_ins_847291"</span>,
+  <span class="cv">"period"</span>: <span class="cs">"2026-01"</span>,
+
+  <span class="cv">"risk_score"</span>: <span class="cn">78</span>,                      <span class="cc">// 0-100, higher = safer</span>
+  <span class="cv">"risk_tier"</span>: <span class="cs">"low"</span>,                    <span class="cc">// "low" | "medium" | "high" | "critical"</span>
+
+  <span class="cv">"factors"</span>: {
+    <span class="cv">"hard_braking_events"</span>: <span class="cn">2</span>,             <span class="cc">// Per month</span>
+    <span class="cv">"harsh_acceleration_events"</span>: <span class="cn">5</span>,
+    <span class="cv">"speeding_pct"</span>: <span class="cn">4.2</span>,                 <span class="cc">// % of time over limit</span>
+    <span class="cv">"night_driving_pct"</span>: <span class="cn">18.0</span>,
+    <span class="cv">"avg_daily_km"</span>: <span class="cn">24.3</span>,
+    <span class="cv">"dtc_count"</span>: <span class="cn">0</span>,
+    <span class="cv">"fatigue_risk"</span>: <span class="cs">"low"</span>
+  },
+
+  <span class="cv">"premium"</span>: {
+    <span class="cv">"base_monthly"</span>: <span class="cn">1100</span>,               <span class="cc">// ₹ base rate</span>
+    <span class="cv">"adjusted_monthly"</span>: <span class="cn">847</span>,            <span class="cc">// ₹ after telematics discount</span>
+    <span class="cv">"discount_pct"</span>: <span class="cn">23.0</span>,
+    <span class="cv">"next_review"</span>: <span class="cs">"2026-03-01"</span>
+  },
+
+  <span class="cv">"data_sources"</span>: [<span class="cs">"location"</span>, <span class="cs">"speed"</span>, <span class="cs">"acceleration"</span>, <span class="cs">"diagnostics"</span>],
+  <span class="cv">"consent_id"</span>: <span class="cs">"cns_8f7a3b2c"</span>
+}</div>
+    </div>
+  </div>
+
+  <!-- Portfolio Risk Distribution -->
+  <div class="card">
+    <div class="card-header"><div class="card-title">📈 Portfolio Risk Distribution</div></div>
+    <div class="card-body">
+      <div class="bar-chart">
+        <div class="bar-row"><span class="bar-label" style="color:var(--green)">Low Risk</span><div class="bar-track"><div class="bar-fill green" style="width:42%">42%</div></div><span class="bar-val">524</span></div>
+        <div class="bar-row"><span class="bar-label" style="color:var(--yellow)">Medium</span><div class="bar-track"><div class="bar-fill yellow" style="width:35%">35%</div></div><span class="bar-val">437</span></div>
+        <div class="bar-row"><span class="bar-label" style="color:var(--orange)">High</span><div class="bar-track"><div class="bar-fill orange" style="width:18%">18%</div></div><span class="bar-val">225</span></div>
+        <div class="bar-row"><span class="bar-label" style="color:var(--red)">Critical</span><div class="bar-track"><div class="bar-fill red" style="width:5%">5%</div></div><span class="bar-val">61</span></div>
+      </div>
+    </div>
+    <div class="card-footer">Telematics-enabled policies show 24% lower loss ratio vs. traditional underwriting</div>
+  </div>
+</div>
+
+<!-- ════════════════════════ TAB 5: FLEET DASHBOARD ════════════════════════ -->
+<div class="panel" id="panel-fleet">
+  <div class="section-title">Fleet Operations Dashboard</div>
+  <div class="section-sub">Real-time fleet tracking, driver behavior monitoring, and predictive maintenance alerts.</div>
+
+  <div class="grid grid-4 mb-20">
+    <div class="card"><div class="stat"><div class="stat-label">Total Vehicles</div><div class="stat-val blue">186</div><div class="stat-sub">Connected fleet</div></div></div>
+    <div class="card"><div class="stat"><div class="stat-label">In Motion</div><div class="stat-val green">124</div><div class="stat-sub">66.7% utilization</div></div></div>
+    <div class="card"><div class="stat"><div class="stat-label">Active Alerts</div><div class="stat-val red">7</div><div class="stat-sub">3 critical, 4 warning</div></div></div>
+    <div class="card"><div class="stat"><div class="stat-label">Compliance</div><div class="stat-val green">98.4%</div><div class="stat-sub">AIS-140 compliance rate</div></div></div>
+  </div>
+
+  <!-- Map -->
+  <div class="card mb-20">
+    <div class="card-header"><div class="card-title">🗺️ Live Fleet Map — India</div>
+      <div class="view-toggle"><button class="active">All</button><button>Moving</button><button>Idle</button><button>Alerts</button></div>
+    </div>
+    <div class="card-body" style="padding:0">
+      <div class="map-view" id="fleet-map">
+        <div class="map-grid"></div>
+        <!-- Map dots populated by JS -->
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-2 mb-20">
+    <!-- Active Alerts -->
+    <div class="card">
+      <div class="card-header"><div class="card-title">🚨 Active Alerts</div><span class="pill pill-red">7 ACTIVE</span></div>
+      <div class="card-body">
+        <div class="alert-list">
+          <div class="alert-item critical">
+            <span class="alert-icon">🔴</span>
+            <div class="alert-body"><div class="alert-title">Geofence breach — MH-TRK-042</div><div class="alert-desc">Tata Ace exited Mumbai–Pune corridor. Driver: Rajesh K.</div></div>
+            <span class="alert-time">2m ago</span>
+          </div>
+          <div class="alert-item critical">
+            <span class="alert-icon">🔴</span>
+            <div class="alert-body"><div class="alert-title">Overspeeding — KA-FLT-089</div><div class="alert-desc">Mahindra Bolero at 112 km/h (limit: 80). NH-48, Bangalore.</div></div>
+            <span class="alert-time">5m ago</span>
+          </div>
+          <div class="alert-item critical">
+            <span class="alert-icon">🔴</span>
+            <div class="alert-body"><div class="alert-title">DTC Active — DL-EV-017</div><div class="alert-desc">MG ZS EV — P0A80 (Battery pack fault). SoC dropping rapidly.</div></div>
+            <span class="alert-time">12m ago</span>
+          </div>
+          <div class="alert-item warning">
+            <span class="alert-icon">🟡</span>
+            <div class="alert-body"><div class="alert-title">Low battery — TN-EV-103</div><div class="alert-desc">Tata Nexon EV at 12% SoC, 22km range. No charger within 15km.</div></div>
+            <span class="alert-time">18m ago</span>
+          </div>
+          <div class="alert-item warning">
+            <span class="alert-icon">🟡</span>
+            <div class="alert-body"><div class="alert-title">Maintenance due — MH-TRK-078</div><div class="alert-desc">Hyundai Creta — 45,000km service overdue by 1,200km.</div></div>
+            <span class="alert-time">1h ago</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Driver Leaderboard -->
+    <div class="card">
+      <div class="card-header"><div class="card-title">🏆 Driver Behavior Leaderboard</div></div>
+      <div class="card-body">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Driver</th><th>Vehicle</th><th>Score</th><th>Hard Brakes</th><th>Speeding</th><th>Efficiency</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td><strong>Priya Sharma</strong></td><td>KA-FLT-012</td><td><span class="pill pill-green">96</span></td><td>0/mo</td><td>1%</td><td>14.2 km/l</td></tr>
+              <tr><td>2</td><td><strong>Amit Patel</strong></td><td>MH-TRK-034</td><td><span class="pill pill-green">91</span></td><td>1/mo</td><td>2%</td><td>12.8 km/l</td></tr>
+              <tr><td>3</td><td><strong>Sunita Rao</strong></td><td>TN-EV-056</td><td><span class="pill pill-green">88</span></td><td>2/mo</td><td>3%</td><td>6.2 km/kWh</td></tr>
+              <tr><td>4</td><td><strong>Vikram Singh</strong></td><td>DL-FLT-091</td><td><span class="pill pill-yellow">72</span></td><td>5/mo</td><td>8%</td><td>10.1 km/l</td></tr>
+              <tr><td>5</td><td><strong>Rajesh Kumar</strong></td><td>MH-TRK-042</td><td><span class="pill pill-red">48</span></td><td>12/mo</td><td>22%</td><td>8.3 km/l</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fleet API -->
+  <div class="card">
+    <div class="card-header"><div class="card-title">⚡ Fleet API — <span style="color:var(--accent)">GET /v1/fleet/{fleet_id}/overview</span></div></div>
+    <div class="card-body">
+      <div class="code-block">{
+  <span class="cv">"fleet_id"</span>: <span class="cs">"flt_mumbai_logistics_01"</span>,
+  <span class="cv">"total_vehicles"</span>: <span class="cn">186</span>,
+  <span class="cv">"status_breakdown"</span>: {
+    <span class="cv">"moving"</span>: <span class="cn">124</span>, <span class="cv">"idle"</span>: <span class="cn">38</span>, <span class="cv">"parked"</span>: <span class="cn">18</span>, <span class="cv">"offline"</span>: <span class="cn">6</span>
+  },
+  <span class="cv">"alerts"</span>: {
+    <span class="cv">"critical"</span>: <span class="cn">3</span>, <span class="cv">"warning"</span>: <span class="cn">4</span>, <span class="cv">"info"</span>: <span class="cn">12</span>
+  },
+  <span class="cv">"compliance"</span>: {
+    <span class="cv">"ais140_rate"</span>: <span class="cn">0.984</span>,
+    <span class="cv">"overdue_maintenance"</span>: <span class="cn">3</span>,
+    <span class="cv">"expired_permits"</span>: <span class="cn">0</span>
+  },
+  <span class="cv">"efficiency"</span>: {
+    <span class="cv">"avg_fuel_efficiency"</span>: <span class="cn">11.4</span>,       <span class="cc">// km/l</span>
+    <span class="cv">"avg_utilization_pct"</span>: <span class="cn">66.7</span>,
+    <span class="cv">"total_km_today"</span>: <span class="cn">12847</span>
+  }
+}</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════ TAB 6: DATA SCHEMA ════════════════════════ -->
+<div class="panel" id="panel-schema">
+  <div class="section-title">DriveStack Data Schema Reference</div>
+  <div class="section-sub">Complete schema definition for the normalized vehicle data model.</div>
+
+  <div class="card mb-20">
+    <div class="card-header"><div class="card-title">📐 Vehicle Object Schema</div></div>
+    <div class="card-body">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">id</td><td><span class="pill pill-blue">string</span></td><td>✓</td><td>DriveStack vehicle identifier</td><td class="mono" style="color:var(--text3)">veh_tata_nexon_ev_a7x3</td></tr>
+            <tr><td class="mono">vin</td><td><span class="pill pill-blue">string</span></td><td>✓</td><td>Vehicle Identification Number</td><td class="mono" style="color:var(--text3)">MATZ521XLN1234567</td></tr>
+            <tr><td class="mono">make</td><td><span class="pill pill-blue">string</span></td><td>✓</td><td>Manufacturer name</td><td class="mono" style="color:var(--text3)">Tata</td></tr>
+            <tr><td class="mono">model</td><td><span class="pill pill-blue">string</span></td><td>✓</td><td>Vehicle model</td><td class="mono" style="color:var(--text3)">Nexon EV Max</td></tr>
+            <tr><td class="mono">year</td><td><span class="pill pill-purple">integer</span></td><td>✓</td><td>Model year</td><td class="mono" style="color:var(--text3)">2024</td></tr>
+            <tr><td class="mono">fuel_type</td><td><span class="pill pill-green">enum</span></td><td>✓</td><td>electric | petrol | diesel | hybrid</td><td class="mono" style="color:var(--text3)">electric</td></tr>
+            <tr><td class="mono">timestamp</td><td><span class="pill pill-yellow">datetime</span></td><td>✓</td><td>ISO 8601 UTC timestamp</td><td class="mono" style="color:var(--text3)">2026-02-21T09:02:18Z</td></tr>
+            <tr><td class="mono">location.lat</td><td><span class="pill pill-purple">float</span></td><td>✓</td><td>Latitude (-90 to 90)</td><td class="mono" style="color:var(--text3)">19.076</td></tr>
+            <tr><td class="mono">location.lng</td><td><span class="pill pill-purple">float</span></td><td>✓</td><td>Longitude (-180 to 180)</td><td class="mono" style="color:var(--text3)">72.8777</td></tr>
+            <tr><td class="mono">location.speed_kmh</td><td><span class="pill pill-purple">float</span></td><td>✓</td><td>Speed in km/h</td><td class="mono" style="color:var(--text3)">62.0</td></tr>
+            <tr><td class="mono">odometer_km</td><td><span class="pill pill-purple">float</span></td><td>✓</td><td>Cumulative km</td><td class="mono" style="color:var(--text3)">24350.7</td></tr>
+            <tr><td class="mono">battery.soc</td><td><span class="pill pill-purple">float</span></td><td>EV only</td><td>State of charge 0-100</td><td class="mono" style="color:var(--text3)">78.5</td></tr>
+            <tr><td class="mono">battery.range_km</td><td><span class="pill pill-purple">float</span></td><td>EV only</td><td>Estimated range in km</td><td class="mono" style="color:var(--text3)">186.0</td></tr>
+            <tr><td class="mono">battery.is_charging</td><td><span class="pill pill-orange">boolean</span></td><td>EV only</td><td>Charging state</td><td class="mono" style="color:var(--text3)">false</td></tr>
+            <tr><td class="mono">fuel.level_pct</td><td><span class="pill pill-purple">float</span></td><td>ICE only</td><td>Fuel level 0-100</td><td class="mono" style="color:var(--text3)">67.2</td></tr>
+            <tr><td class="mono">diagnostics.dtc_codes</td><td><span class="pill pill-blue">string[]</span></td><td>✓</td><td>Active DTC codes</td><td class="mono" style="color:var(--text3)">["P0171"]</td></tr>
+            <tr><td class="mono">meta.consent_id</td><td><span class="pill pill-blue">string</span></td><td>✓</td><td>DPDP consent token</td><td class="mono" style="color:var(--text3)">cns_8f7a3b2c</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+      </div><!-- /content-inner -->
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<script>
+// ─── NAV ───
+const navItems = document.querySelectorAll('.nav-item');
+const panels = document.querySelectorAll('.panel');
+const topTitle = document.getElementById('topbar-title');
+const titles = {
+  'raw-data':'Raw OEM Data','pipeline':'Normalization Pipeline','api-output':'Normalized API Output',
+  'insurance':'Dynamic Insurance','fleet':'Fleet Tracking','schema':'Data Schema'
+};
+navItems.forEach(item => {
+  item.addEventListener('click', () => {
+    const tab = item.dataset.tab;
+    navItems.forEach(n => n.classList.remove('active'));
+    panels.forEach(p => p.classList.remove('active'));
+    item.classList.add('active');
+    document.getElementById('panel-' + tab).classList.add('active');
+    topTitle.textContent = titles[tab] || tab;
+  });
+});
+
+// ─── CLOCK ───
+function updateClock(){
+  const now = new Date();
+  document.getElementById('clock').textContent = now.toLocaleTimeString('en-US',{hour12:false}) + ' IST';
+}
+updateClock(); setInterval(updateClock, 1000);
+
+// ─── FLEET TABLE ───
+const vehicles = [
+  {id:'veh_tata_nexon_a7x3',make:'Tata',model:'Nexon EV Max',fuel:'electric',speed:62,energy:78.5,odo:24350,lat:19.076,lng:72.878,dtcs:[],status:'moving'},
+  {id:'veh_hyu_creta_b2k1',make:'Hyundai',model:'Creta 2024',fuel:'petrol',speed:0,energy:67.2,odo:18420,lat:12.972,lng:77.595,dtcs:['P0171'],status:'idle'},
+  {id:'veh_mg_zsev_c4m8',make:'MG',model:'ZS EV',fuel:'electric',speed:45.8,energy:64.5,odo:31250,lat:28.614,lng:77.209,dtcs:[],status:'moving'},
+  {id:'veh_kia_seltos_d9n2',make:'Kia',model:'Seltos',fuel:'petrol',speed:61.1,energy:82,odo:9870,lat:17.385,lng:78.487,dtcs:[],status:'moving'},
+  {id:'veh_byd_atto3_e5p7',make:'BYD',model:'Atto 3',fuel:'electric',speed:55,energy:91,odo:8230,lat:13.083,lng:80.271,dtcs:[],status:'moving'},
+  {id:'veh_mah_xuv700_f1q4',make:'Mahindra',model:'XUV700',fuel:'diesel',speed:78,energy:54.8,odo:42100,lat:18.520,lng:73.857,dtcs:['P0301','P0420'],status:'moving'},
+  {id:'veh_ais_trk_g8r6',make:'AIS-140',model:'GPS Tracker',fuel:'diesel',speed:83.7,energy:58.3,odo:1210,lat:19.076,lng:72.878,dtcs:[],status:'moving'},
+  {id:'veh_tata_punch_h3s9',make:'Tata',model:'Punch EV',fuel:'electric',speed:0,energy:12,odo:15870,lat:13.060,lng:80.250,dtcs:[],status:'idle'},
+  {id:'veh_hyu_ioniq_i7t2',make:'Hyundai',model:'Ioniq 5',fuel:'electric',speed:88,energy:55.2,odo:22100,lat:28.550,lng:77.150,dtcs:[],status:'moving'},
+  {id:'veh_mah_bolero_j2u5',make:'Mahindra',model:'Bolero',fuel:'diesel',speed:112,energy:38,odo:87600,lat:12.920,lng:77.600,dtcs:[],status:'alert'},
+];
+
+const tbody = document.querySelector('#fleet-table tbody');
+vehicles.forEach(v => {
+  const fuelLabel = v.fuel === 'electric' ? 'SoC' : 'Fuel';
+  const statusPill = v.status === 'moving' ? 'pill-green' : v.status === 'idle' ? 'pill-yellow' : 'pill-red';
+  const dtcText = v.dtcs.length ? v.dtcs.join(', ') : '—';
+  const dtcClass = v.dtcs.length ? 'color:var(--red)' : 'color:var(--green)';
+  tbody.innerHTML += `<tr>
+    <td class="mono">${v.id.split('_').slice(1,3).join('_')}</td>
+    <td>${v.make}</td><td>${v.model}</td>
+    <td><span class="pill pill-${v.fuel==='electric'?'blue':v.fuel==='petrol'?'green':'orange'}">${v.fuel}</span></td>
+    <td class="mono">${v.speed}</td>
+    <td class="mono">${v.energy}% <span style="font-size:9px;color:var(--text3)">${fuelLabel}</span></td>
+    <td class="mono">${v.odo.toLocaleString()}</td>
+    <td class="mono" style="font-size:10px">${v.lat}, ${v.lng}</td>
+    <td style="${dtcClass}">${dtcText}</td>
+    <td><span class="pill ${statusPill}">${v.status.toUpperCase()}</span></td>
+  </tr>`;
+});
+
+// ─── MAP DOTS ───
+const mapEl = document.getElementById('fleet-map');
+const cities = [
+  {name:'Mumbai',x:22,y:45,status:'moving'},{name:'Delhi',x:42,y:18,status:'moving'},
+  {name:'Bangalore',x:35,y:72,status:'idle'},{name:'Chennai',x:50,y:70,status:'moving'},
+  {name:'Pune',x:25,y:50,status:'alert'},{name:'Hyderabad',x:40,y:55,status:'moving'},
+  {name:'Kolkata',x:68,y:35,status:'moving'},{name:'Ahmedabad',x:18,y:35,status:'idle'},
+  {name:'Jaipur',x:32,y:25,status:'moving'},{name:'Lucknow',x:52,y:25,status:'moving'},
+  {name:'Kochi',x:30,y:82,status:'moving'},{name:'Goa',x:20,y:62,status:'idle'},
+  {name:'Nagpur',x:40,y:40,status:'moving'},{name:'Indore',x:30,y:38,status:'moving'},
+  {name:'Coimbatore',x:38,y:78,status:'moving'},
+];
+cities.forEach(c => {
+  const dot = document.createElement('div');
+  dot.className = `map-dot ${c.status}`;
+  dot.style.cssText = `left:${c.x}%;top:${c.y}%`;
+  dot.innerHTML = `<div class="map-tooltip"><strong>${c.name}</strong><br>${Math.floor(Math.random()*15+2)} vehicles • ${c.status}</div>`;
+  mapEl.appendChild(dot);
+});
+</script>
+</body>
+</html>
